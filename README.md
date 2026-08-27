@@ -206,8 +206,8 @@ The original POM2K source was distributed under the
 Hazar is distributed under the
 **GNU General Public License, version 3 or later (GPL-3.0-or-later)**.
 
-See [`COPYING`](COPYING) and [`NOTICE`](NOTICE) for complete licensing,
-attribution, and provenance information.
+See [`COPYING.md`](COPYING.md) and [`NOTICE.md`](NOTICE.md) for
+complete licensing, attribution, and provenance information.
 
 ---
 
@@ -308,5 +308,5 @@ Hazar is free software distributed under the terms of the:
 Hazar contains work derived from the Princeton Ocean Model / POM2K,
 which was originally distributed under the **GPL-2.0-or-later**.
 
-See [`COPYING`](COPYING) for the complete license text and
-[`NOTICE`](NOTICE) for attribution and provenance information.
+See [`COPYING.md`](COPYING.md) for the complete license text and
+[`NOTICE.md`](NOTICE.md) for attribution and provenance information.
