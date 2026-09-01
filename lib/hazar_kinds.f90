@@ -28,7 +28,7 @@ module hazar_kinds
 
   public :: REAL32, REAL64, RK
 
-  integer, parameter :: REAL32 = selected_real_kind (p=6 , r=37 )
+  integer, parameter :: REAL32 = selected_real_kind (p=6, r=37)
   integer, parameter :: REAL64 = selected_real_kind (p=15, r=307)
 
   !> Real kind used by the model.

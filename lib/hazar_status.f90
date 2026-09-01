@@ -26,7 +26,7 @@ module hazar_status
 contains
 
   pure function hazar_status_failed (self) result (ret)
-    class(HazarStatus), intent (in) :: self
+    class (HazarStatus), intent (in) :: self
 
     logical :: ret
 
