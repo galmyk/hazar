@@ -24,16 +24,19 @@ module hazar_kinds
 
   implicit none
 
-  integer, parameter :: REAL32 = selected_real_kind(p =  6, r =  37)
-  integer, parameter :: REAL64 = selected_real_kind(p = 15, r = 307)
+  private
+
+  public :: REAL32, REAL64, RK
+
+  integer, parameter :: REAL32 = selected_real_kind (p=6 , r=37 )
+  integer, parameter :: REAL64 = selected_real_kind (p=15, r=307)
 
   !> Real kind used by the model.
   !!
   !! The default is REAL32 to preserve the numerical behavior of the
   !! original POM implementation, which used default `real`.
   !!
-  !! Change REAL32 to REAL64 here to build the model in double
-  !! precision.
+  !! Change REAL32 to REAL64 here to build the model in double precision.
   integer, parameter :: RK = REAL32
 
 end module hazar_kinds
