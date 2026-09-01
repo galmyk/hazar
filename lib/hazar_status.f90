@@ -4,7 +4,7 @@
 !! able to detect failure and decide what to do (the CLI driver is free
 !! to turn a failed status into a non-zero process exit).
 
-module hazar_error
+module hazar_status
 
   implicit none
 
@@ -50,4 +50,4 @@ contains
     if (allocated (self%message)) deallocate (self%message)
   end subroutine hazar_status_clear
 
-end module hazar_error
+end module hazar_status
