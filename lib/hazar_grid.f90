@@ -56,6 +56,7 @@ module hazar_grid
    contains
      procedure :: allocate => hazar_grid_allocate
      procedure :: destroy  => hazar_grid_destroy
+     procedure :: depth    => hazar_grid_compute_sigma_coordinates
   end type HazarGrid
 
 contains
@@ -180,5 +181,78 @@ contains
 
     if (allocated (self%cbc)) deallocate (self%cbc)
   end subroutine hazar_grid_destroy
+
+  ! Faithful port of pom2k.f's `subroutine depth`: establishes the
+  ! vertical sigma grid with log distributions at the top and bottom and
+  ! a linear distribution in between. kl1-2 layers of reduced thickness
+  ! at the surface, kb-kl2-1 at the bottom; kl1=2, kl2=kb-1 disables the
+  ! log portions. Numerically identical to the legacy routine.
+  subroutine hazar_grid_compute_sigma_coordinates (self, kl1, kl2, status)
+    class (HazarGrid) , intent (in out) :: self
+    integer           , intent (in)     :: kl1, kl2
+    type (HazarStatus), intent (out)    :: status
+
+    integer   :: kb, k
+    real (RK) :: delz
+
+    integer, parameter :: kdz(12) = [1, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
+
+    associate (kb => self%kb, z => self%z, zz => self%zz, dz => self%dz, dzz => self%dzz)
+      call status%clear()
+
+      if (kb <= 0) then
+         call status%set(1, 'pom_grid%compute_sigma_coordinates: grid not allocated')
+         return
+      end if
+
+      if (kl1 < 2 .or. kl1 >= kl2 .or. kl2 > kb - 1) then
+         call status%set(1, 'pom_grid%compute_sigma_coordinates: require 2 <= kl1 < kl2 <= nz-1')
+         return
+      end if
+
+      z(1) = 0.0_RK
+
+      do k = 2, kl1
+         z(k) = z(k - 1) + real (kdz(k - 1), RK)
+      end do
+
+      delz = z(kl1) - z(kl1 - 1)
+
+      do k = kl1 + 1, kl2
+         z(k) = z(k - 1) + delz
+      end do
+
+      do k = kl2 + 1, kb
+         dz(k) = real (kdz(kb - k + 1), RK) * delz / real (kdz(kb - kl2), RK)
+         z(k) = z(k - 1) + dz(k)
+      end do
+
+      do k = 1, kb
+         z(k) = -z(k) / z(kb)
+      end do
+
+      do k = 1, kb - 1
+         zz(k) = 0.5_RK * (z(k) + z(k + 1))
+      end do
+
+      zz(kb) = 2.0_rk * zz(kb - 1) - zz(kb - 2)
+
+      do k = 1, kb - 1
+         dz(k)  = z(k)  - z(k + 1)
+         dzz(k) = zz(k) - zz(k + 1)
+      end do
+
+      dz(kb)  = 0.0_RK
+      dzz(kb) = 0.0_RK
+
+      print '(/2x, "k", 7x, "z", 9x, "zz", 9x, "dz", 9x, "dzz", /)'
+
+      do k = 1, kb
+         print '(" ", i5, 4f10.3)', k, z(k), zz(k), dz(k), dzz(k)
+      end do
+
+      print '(//)'
+    end associate
+  end subroutine hazar_grid_compute_sigma_coordinates
 
 end module hazar_grid
