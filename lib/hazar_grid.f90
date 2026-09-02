@@ -54,9 +54,10 @@ module hazar_grid
      ! Quadratic bottom drag coefficient.
      real (RK), allocatable :: cbc(:, :)
    contains
-     procedure :: allocate => hazar_grid_allocate
-     procedure :: destroy  => hazar_grid_destroy
-     procedure :: depth    => hazar_grid_compute_sigma_coordinates
+     procedure :: allocate        => hazar_grid_allocate
+     procedure :: destroy         => hazar_grid_destroy
+     procedure :: depth           => hazar_grid_compute_sigma_coordinates
+     procedure :: areas_and_masks => hazar_grid_compute_areas_and_masks
   end type HazarGrid
 
 contains
@@ -192,7 +193,7 @@ contains
     integer           , intent (in)     :: kl1, kl2
     type (HazarStatus), intent (out)    :: status
 
-    integer   :: kb, k
+    integer   :: k
     real (RK) :: delz
 
     integer, parameter :: kdz(12) = [1, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
@@ -254,5 +255,67 @@ contains
       print '(//)'
     end associate
   end subroutine hazar_grid_compute_sigma_coordinates
+
+  ! Faithful port of pom2k.f's `subroutine areas_masks`. Requires
+  ! dx, dy and depth (h) to already be populated; land is depth <= 1 metre,
+  ! exactly as in the legacy routine.
+  subroutine hazar_grid_compute_areas_and_masks (self, status)
+    class (HazarGrid) , intent (in out) :: self
+    type (HazarStatus), intent (out)    :: status
+
+    integer :: i, j
+
+    call status%clear ()
+
+    associate (im => self%im, jm => self%jm, dx => self%dx, dy => self%dy, h => self%h, &
+         &     art => self%art, aru => self%aru, arv => self%arv, &
+         &     fsm => self%fsm, dum => self%dum, dvm => self%dvm)
+
+      if (im <= 0 .or. jm <= 0) then
+         call status%set (1, 'hazar_grid%areas_masks: grid not allocated')
+         return
+      end if
+
+      do j = 1, jm
+         do i = 1, im
+            art(i, j) = dx(i, j) * dy(i, j)
+         end do
+      end do
+
+      do j = 2, jm
+         do i = 2, im
+            aru(i, j) = 0.25_RK * (dx(i, j) + dx(i - 1, j)) * (dy(i, j) + dy(i - 1, j))
+            arv(i, j) = 0.25_RK * (dx(i, j) + dx(i, j - 1)) * (dy(i, j) + dy(i, j - 1))
+         end do
+      end do
+
+      do j = 1, jm
+         aru(1, j) = aru(2, j)
+         arv(1, j) = arv(2, j)
+      end do
+
+      do i = 1, im
+         aru(i, 1) = aru(i, 2)
+         arv(i, 1) = arv(i, 2)
+      end do
+
+      fsm = 0.0_RK
+      dum = 0.0_RK
+      dvm = 0.0_RK
+      do j = 1, jm
+         do i = 1, im
+            if (h(i, j) > 1.0_RK) fsm(i, j) = 1.0_RK
+         end do
+      end do
+
+      do j = 2, jm
+         do i = 2, im
+            dum(i, j) = fsm(i, j) * fsm(i - 1, j)
+            dvm(i, j) = fsm(i, j) * fsm(i, j - 1)
+         end do
+      end do
+
+    end associate
+  end subroutine hazar_grid_compute_areas_and_masks
 
 end module hazar_grid
