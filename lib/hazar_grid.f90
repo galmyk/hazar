@@ -70,7 +70,7 @@ contains
     call status%clear ()
 
     if (im <= 0 .or. jm <= 0 .or. kb <= 0) then
-       call status%set (1, 'hazar_grid%allocate: im, jm, kb must all be positive')
+       call status%set (1, 'HazarGrid%allocate: im, jm, kb must all be positive')
        return
     end if
 
@@ -202,12 +202,12 @@ contains
       call status%clear()
 
       if (kb <= 0) then
-         call status%set(1, 'pom_grid%compute_sigma_coordinates: grid not allocated')
+         call status%set(1, 'HazarGrid%depth: grid not allocated')
          return
       end if
 
       if (kl1 < 2 .or. kl1 >= kl2 .or. kl2 > kb - 1) then
-         call status%set(1, 'pom_grid%compute_sigma_coordinates: require 2 <= kl1 < kl2 <= nz-1')
+         call status%set(1, 'HazarGrid%depth: require 2 <= kl1 < kl2 <= nz-1')
          return
       end if
 
@@ -272,7 +272,7 @@ contains
          &     fsm => self%fsm, dum => self%dum, dvm => self%dvm)
 
       if (im <= 0 .or. jm <= 0) then
-         call status%set (1, 'hazar_grid%areas_masks: grid not allocated')
+         call status%set (1, 'HazarGrid%areas_masks: grid not allocated')
          return
       end if
 
