@@ -59,6 +59,7 @@ module hazar_grid
      procedure :: depth           => hazar_grid_compute_sigma_coordinates
      procedure :: areas_and_masks => hazar_grid_compute_areas_and_masks
      procedure :: slpmax          => hazar_grid_limit_slope
+     procedure :: calc_cbc        => hazar_grid_compute_bottom_drag
   end type HazarGrid
 
 contains
@@ -399,5 +400,32 @@ contains
       end do
     end associate
   end subroutine hazar_grid_limit_slope
+
+  ! Faithful port of the bottom-drag-coefficient calculation from
+  ! pom2k.f's main program (pom2k.f:703-713), run once during initial-
+  ! condition finalization, after the grid/bathymetry is fully set up
+  ! (h, zz and fsm must already hold their final values). Grid-derived
+  ! static data: a quadratic drag law coefficient from the log-layer
+  ! profile at the bottom-most sigma centre, clipped to [cbcmin, cbcmax]
+  ! (the clipping guards against a pathological choice of z0b or vertical
+  ! spacing, per the legacy comment). Never reassigned again once computed.
+  subroutine hazar_grid_compute_bottom_drag (self, kappa, z0b, cbcmin, cbcmax)
+    class (HazarGrid), intent (in out) :: self
+    real (RK)        , intent (in)     :: kappa, z0b, cbcmin, cbcmax
+
+    integer :: i, j
+
+    associate (im => self%im, jm => self%jm, kb => self%kb, h => self%h, zz => self%zz, cbc => self%cbc)
+      do j = 1, jm
+         do i = 1, im
+            cbc(i, j) = (kappa / log ((1.0_RK + zz(kb - 1)) * h(i, j) / z0b))**2
+            cbc(i, j) = max (cbcmin, cbc(i, j))
+            ! If the following is invoked, then it is probable that the wrong
+            ! choice of z0b or vertical spacing has been made
+            cbc(i, j) = min (cbcmax, cbc(i, j))
+         end do
+      end do
+    end associate
+  end subroutine hazar_grid_compute_bottom_drag
 
 end module hazar_grid
