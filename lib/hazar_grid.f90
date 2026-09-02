@@ -58,6 +58,7 @@ module hazar_grid
      procedure :: destroy         => hazar_grid_destroy
      procedure :: depth           => hazar_grid_compute_sigma_coordinates
      procedure :: areas_and_masks => hazar_grid_compute_areas_and_masks
+     procedure :: slpmax          => hazar_grid_limit_slope
   end type HazarGrid
 
 contains
@@ -317,5 +318,86 @@ contains
 
     end associate
   end subroutine hazar_grid_compute_areas_and_masks
+
+  ! Faithful port of pom2k.f's `subroutine slpmax`: limits cell-to-cell
+  ! bathymetry variation, |h(i+1)-h(i)| / (h(i+1)+h(i)), to at most
+  ! slmax, by symmetrically adjusting the two depths whenever the ratio
+  ! is exceeded. This reduces sigma-coordinate pressure-gradient
+  ! truncation error over steep topography. Requires h and fsm to already
+  ! be set; legacy calls this right after areas_masks, and only when
+  ! slmax < 1 (pom2k.f:3532,5633) -- box's IC generator never calls it at
+  ! all, presumably because its bathymetry has no steep steps to begin
+  ! with.
+  !
+  ! This is an in-place relaxation over 10 sweeps, each sweep doing a
+  ! full rightward-then-leftward pass over i (per row) followed by a full
+  ! upward-then-downward pass over j (per column); each pass mutates h in
+  ! place and immediately feeds the next pass, so the exact loop
+  ! nesting/order below matters and mirrors pom2k.f line for line.
+  subroutine hazar_grid_limit_slope (self, slmax)
+    class (HazarGrid), intent (in out) :: self
+    real (RK)        , intent (in)     :: slmax
+
+    real (RK) :: mean, del
+    integer   :: i, j, loop
+
+    associate (im => self%im, jm => self%jm, h => self%h, fsm => self%fsm)
+      do loop = 1, 10
+
+         ! Sweep right, then left, for each row j:
+         do j = 2, jm - 1
+            ! Sweep right
+            do i = 2, im - 1
+               if (fsm(i, j) /= 0.0_RK .and. fsm(i + 1, j) /= 0.0_RK) then
+                  if (abs (h(i + 1, j) - h(i, j)) / (h(i, j) + h(i + 1, j)) >= slmax) then
+                     mean = (h(i + 1, j) + h(i, j)) / 2.0_RK
+                     del = sign (slmax, h(i + 1, j) - h(i, j))
+                     h(i + 1, j) = mean * (1.0_RK + del)
+                     h(i    , j) = mean * (1.0_RK - del)
+                  end if
+               end if
+            end do
+            ! Sweep left
+            do i = im - 1, 2, -1
+               if (fsm(i, j) /= 0.0_RK .and. fsm(i + 1, j) /= 0.0_RK) then
+                  if (abs (h(i + 1, j) - h(i, j)) / (h(i, j) + h(i + 1, j)) >= slmax) then
+                     mean = (h(i + 1, j) + h(i, j)) / 2.0_RK
+                     del = sign (slmax, h(i + 1,j) - h(i, j))
+                     h(i + 1, j) = mean * (1.0_RK + del)
+                     h(i    , j) = mean * (1.0_RK - del)
+                  end if
+               end if
+            end do
+         end do
+
+         ! Sweep up, then down, for each column i:
+         do i = 2, im - 1
+            ! Sweep up
+            do j = 2, jm - 1
+               if (fsm(i, j) /= 0.0_RK .and. fsm(i, j + 1) /= 0.0_RK) then
+                  if (abs (h(i, j + 1) - h(i, j)) / (h(i, j) + h(i, j + 1)) >= slmax) then
+                     mean = (h(i, j + 1) + h(i, j)) / 2.0_RK
+                     del = sign (slmax, h(i, j + 1) - h(i, j))
+                     h(i, j + 1) = mean * (1.0_RK + del)
+                     h(i, j    ) = mean * (1.0_RK - del)
+                  end if
+               end if
+            end do
+            ! Sweep down
+            do j = jm - 1, 2, -1
+               if (fsm(i, j) /= 0.0_RK .and. fsm(i, j + 1) /= 0.0_RK) then
+                  if (abs (h(i, j + 1) - h(i, j)) / (h(i, j) + h(i, j + 1)) >= slmax) then
+                     mean = (h(i, j + 1) + h(i, j)) / 2.0_RK
+                     del = sign (slmax, h(i, j + 1) - h(i, j))
+                     h(i, j + 1) = mean * (1.0_RK + del)
+                     h(i, j    ) = mean * (1.0_RK - del)
+                  end if
+               end if
+            end do
+         end do
+
+      end do
+    end associate
+  end subroutine hazar_grid_limit_slope
 
 end module hazar_grid
